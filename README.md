@@ -1,4 +1,4 @@
-To run the program on your local machine:
+## To run the program on your local machine:
 
 ## Prerequisites
 - [Node.js](https://nodejs.org/) (v14+)
@@ -8,12 +8,6 @@ To run the program on your local machine:
 - Macbook (This is my local machine. I'm not sure if it works fine on Windows)
 
 ## Setup
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/yourrepository.git
-   cd yourrepository
-
-
 1. Clone the repository:
    ```bash
    git clone https://github.com/leslie0605/interview-platform-backend.git
@@ -27,7 +21,7 @@ To run the program on your local machine:
    ```bash
    OPENAI_API_KEY=your_openai_api_key_here
    ```
-4. Upload your own resume to root folder with its name as "resume.pdf".
+4. Upload your own resume to root folder and name it as "resume.pdf".
 5. Start the app:
    ```bash
    node ttsChat.js 
