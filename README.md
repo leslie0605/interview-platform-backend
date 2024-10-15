@@ -1,5 +1,3 @@
-## To run the program on your local machine:
-
 ## Prerequisites
 - [Node.js](https://nodejs.org/) (v14+)
 - [FFmpeg](https://ffmpeg.org/download.html) installed and accessible in PATH
@@ -7,7 +5,7 @@
 - Microphone and speaker setup
 - Macbook (This is my local machine. I'm not sure if it works fine on Windows)
 
-## Setup
+## To run the program on your local machine
 1. Clone the repository:
    ```bash
    git clone https://github.com/leslie0605/interview-platform-backend.git
