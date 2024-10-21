@@ -22,10 +22,10 @@ const openai = new OpenAI({
 
 // Variables to store chat history and other components
 let chatHistory = []; // To store the conversation history
-let mic, outputFile, micStream, rl; // Microphone, output file, microphone stream, and readline interface
+let mic, micStream, rl; // Microphone, microphone stream, and readline interface
+let outputFilePath, outputFile; // Path to the output file, and the output file stream
 
-let outputFilePath; // Path to the output file
-
+// Example data for the interview scenario
 const companyName = "Google"; // Example company name
 const roleName = "Software Engineer"; // Example role name
 const jobDescription = `• Design, develop, and deliver technical solutions rapidly, end to end, and across the full stack.
@@ -42,7 +42,7 @@ const setupReadlineInterface = () => {
   rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    terminal: true, // Make sure the terminal can capture keypress events
+    terminal: true,
   });
 
   readline.emitKeypressEvents(process.stdin, rl);
@@ -108,18 +108,6 @@ const stopRecordingAndProcess = () => {
 const inputVoice = "echo"; // https://platform.openai.com/docs/guides/text-to-speech/voice-options
 const inputModel = "tts-1"; // https://platform.openai.com/docs/guides/text-to-speech/audio-quality
 
-// Function to extract text from a PDF file
-async function extractTextFromPDF(filePath) {
-  const dataBuffer = fs.readFileSync(filePath);
-  try {
-    const data = await pdf(dataBuffer);
-    return data.text; // Extracted text from PDF
-  } catch (error) {
-    console.error("Error extracting text from PDF:", error);
-    return "";
-  }
-}
-
 // Function to convert text to speech and play it using Speaker
 async function streamedAudio(
   inputText,
@@ -170,9 +158,55 @@ async function streamedAudio(
   }
 }
 
+// Function to extract text from a PDF file
+async function extractTextFromPDF(filePath) {
+  const dataBuffer = fs.readFileSync(filePath);
+  try {
+    const data = await pdf(dataBuffer);
+    return data.text; // Extracted text from PDF
+  } catch (error) {
+    console.error("Error extracting text from PDF:", error);
+    return "";
+  }
+}
+
+// Function to evaluate the user's response
+async function evaluateResponse(userResponse, question) {
+  const evaluationPrompt = `
+As an expert interviewer, evaluate the candidate's response to the following question.
+
+Question: "${question}"
+Candidate's Response: "${userResponse}"
+
+Provide a score from 0 to 10, where 10 is excellent and 0 is poor. Then, give detailed feedback on the coherence and relevance of the response.
+
+Format:
+Score: [score]
+Feedback: [feedback]
+`;
+
+  try {
+    const evaluationResponse = await openai.chat.completions.create({
+      messages: [{ role: "user", content: evaluationPrompt }],
+      model: "gpt-3.5-turbo",
+    });
+
+    const evaluationText = evaluationResponse.choices[0].message.content;
+    console.log(`\n### Evaluation ###\n${evaluationText}\n#################\n`);
+  } catch (error) {
+    if (error.response) {
+      console.error(
+        `Error during evaluation: ${error.response.status} - ${error.response.statusText}`
+      );
+    } else {
+      console.error("Error during evaluation:", error.message);
+    }
+  }
+}
+
 // Function to transcribe audio to text and send it to the chatbot
 async function transcribeAndChat(filePath) {
-  // note that the file size limitations are 25MB for Whisper
+  // Note that the file size limitations are 25MB for Whisper
 
   // Prepare form data for the transcription request
   const form = new FormData();
@@ -198,16 +232,27 @@ async function transcribeAndChat(filePath) {
     const transcribedText = transcriptionResponse.data;
     console.log(`>> You said: ${transcribedText}`);
 
+    // Get the last assistant message (the question)
+    const lastAssistantMessage = chatHistory
+      .slice()
+      .reverse()
+      .find((msg) => msg.role === "assistant")?.content;
+
+    // Evaluate the user's response
+    if (lastAssistantMessage) {
+      await evaluateResponse(transcribedText, lastAssistantMessage);
+    }
+
     // Prepare messages for the chatbot, including the transcribed text
     const messages = [
       {
         role: "system",
         content: `You are an interviewer from the company ${companyName}.
-        Today there is a candidate interviewing for the position ${roleName}.
-        Here is the job description: ${jobDescription}.
-        The candidate's resume is as follows: ${resumeText}.
-        Please ask relevant interview questions based on the resume and the candidate's responses.
-        Ask questions one by one like a real interview. Start with general question like "Tell me about yourself".`,
+Today there is a candidate interviewing for the position ${roleName}.
+Here is the job description: ${jobDescription}.
+The candidate's resume is as follows: ${resumeText}.
+Please ask relevant interview questions based on the resume and the candidate's responses.
+Ask questions one by one like a real interview. Start with a general question like "Tell me about yourself".`,
       },
       ...chatHistory,
       { role: "user", content: transcribedText },
